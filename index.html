@@ -58,6 +58,9 @@
     // ── LOAD DATA ─────────────────────────────────────────────────
     async function loadDataFromSheet() {
         try {
+            console.log('🔄 Starting to load data from sheet...');
+            console.log('Sheet URL:', sheetUrl);
+
             // Add timeout to prevent infinite hanging
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -68,13 +71,19 @@
             if (!response.ok) throw new Error(`Sheet link failed (${response.status})`);
 
             const csvData = await response.text();
+            console.log('📄 Raw CSV Data received:', csvData.substring(0, 200) + '...');
+            
             if (!csvData || csvData.length === 0) throw new Error("Sheet returned empty data");
 
             const rows = csvData.split('\n').filter(row => row.trim()).slice(1);
+            console.log('📊 Total rows parsed:', rows.length);
 
-            DATA = rows.map(row => {
+            DATA = rows.map((row, idx) => {
                 const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                if (cols.length < 5) return null;
+                if (cols.length < 5) {
+                    console.warn(`⚠️ Row ${idx} has only ${cols.length} columns (need 5):`, row);
+                    return null;
+                }
                 return {
                     title:        cols[0]?.replace(/"/g, '').trim(),
                     industry:     cols[1]?.replace(/"/g, '').trim(),
@@ -84,11 +93,14 @@
                 };
             }).filter(p => p !== null && p.title !== "");
 
+            console.log('✅ Valid projects loaded:', DATA.length);
+            console.log('📋 Projects data:', DATA);
+
             if (DATA.length === 0) throw new Error("No valid projects found in sheet");
 
             refresh();
         } catch (error) {
-            console.error("Error loading sheet:", error);
+            console.error("❌ Error loading sheet:", error);
             document.getElementById('portfolio-grid').innerHTML =
                 `<div style="grid-column:1/-1;text-align:center;padding:100px;color:#999;">
                     <strong>Could not load projects</strong><br>
@@ -130,16 +142,20 @@
     }
 
     function render(list) {
+        console.log('🎨 Rendering projects. Count:', list.length);
+        console.log('Projects to render:', list);
         
         const g = document.getElementById('portfolio-grid');
 
         if (!list.length) {
+            console.warn('⚠️ Empty list - no projects to display');
             g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:100px;">No projects found.</div>';
             return;
         }
 
         g.innerHTML = list.map((p) => {
             const c = gc(p.industry);
+            console.log(`🖼️ Rendering card: ${p.title} (${p.industry})`);
             return `
                 <div class="portfolio-card" onclick="window.open('${p.dashboardUrl}', '_blank')">
                     <div class="card-header">
@@ -158,6 +174,8 @@
                     </div>
                 </div>`;
         }).join('');
+        
+        console.log('✅ Rendering complete');
     }
 
     function refresh() {
