@@ -58,9 +58,6 @@
     // ── LOAD DATA ─────────────────────────────────────────────────
     async function loadDataFromSheet() {
         try {
-            console.log('🔄 Starting to load data from sheet...');
-            console.log('Sheet URL:', sheetUrl);
-
             // Add timeout to prevent infinite hanging
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -71,12 +68,10 @@
             if (!response.ok) throw new Error(`Sheet link failed (${response.status})`);
 
             const csvData = await response.text();
-            console.log('📄 Raw CSV Data received:', csvData.substring(0, 200) + '...');
             
             if (!csvData || csvData.length === 0) throw new Error("Sheet returned empty data");
 
             const rows = csvData.split('\n').filter(row => row.trim()).slice(1);
-            console.log('📊 Total rows parsed:', rows.length);
 
             DATA = rows.map((row, idx) => {
                 const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
@@ -92,10 +87,7 @@
                     imageUrl:     cols[4]?.replace(/"/g, '').trim()
                 };
             }).filter(p => p !== null && p.title !== "");
-
-            console.log('✅ Valid projects loaded:', DATA.length);
-            console.log('📋 Projects data:', DATA);
-
+            
             if (DATA.length === 0) throw new Error("No valid projects found in sheet");
 
             refresh();
@@ -142,9 +134,6 @@
     }
 
     function render(list) {
-        console.log('🎨 Rendering projects. Count:', list.length);
-        console.log('Projects to render:', list);
-        
         const g = document.getElementById('portfolio-grid');
 
         if (!list.length) {
@@ -155,7 +144,6 @@
 
         g.innerHTML = list.map((p) => {
             const c = gc(p.industry);
-            console.log(`🖼️ Rendering card: ${p.title} (${p.industry})`);
             return `
                 <div class="portfolio-card" onclick="window.open('${p.dashboardUrl}', '_blank')">
                     <div class="card-header">
@@ -175,7 +163,6 @@
                 </div>`;
         }).join('');
         
-        console.log('✅ Rendering complete');
     }
 
     function refresh() {
