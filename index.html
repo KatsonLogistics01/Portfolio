@@ -48,9 +48,9 @@
     };
 
     // ── GOOGLE SHEET URL ──────────────────────────────────────────
-    // Using your sheet ID and exporting as CSV (gid=0). If this still fails,
-    // publish the sheet to the web or set sharing to "Anyone with the link".
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/1p-cyPKiiRQrXyks9rQCvJLs-MVJXFgeA/edit?gid=2120182160#gid=2120182160";
+    // Correct CSV export format. Sheet must be publicly shared ("Anyone with the link")
+    const SHEET_ID = "1p-cyPKiiRQrXyks9rQCvJLs-MVJXFgeA";
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=2120182160`;
 
     let DATA = [];
     let AF = 'All';
@@ -58,11 +58,19 @@
     // ── LOAD DATA ─────────────────────────────────────────────────
     async function loadDataFromSheet() {
         try {
-            const response = await fetch(sheetUrl);
-            if (!response.ok) throw new Error("Sheet link failed (" + response.status + ")");
+            // Add timeout to prevent infinite hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            const response = await fetch(sheetUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) throw new Error(`Sheet link failed (${response.status})`);
 
             const csvData = await response.text();
-            const rows = csvData.split('\n').slice(1);
+            if (!csvData || csvData.length === 0) throw new Error("Sheet returned empty data");
+
+            const rows = csvData.split('\n').filter(row => row.trim()).slice(1);
 
             DATA = rows.map(row => {
                 const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
@@ -76,12 +84,16 @@
                 };
             }).filter(p => p !== null && p.title !== "");
 
+            if (DATA.length === 0) throw new Error("No valid projects found in sheet");
+
             refresh();
         } catch (error) {
             console.error("Error loading sheet:", error);
             document.getElementById('portfolio-grid').innerHTML =
                 `<div style="grid-column:1/-1;text-align:center;padding:100px;color:#999;">
-                    Could not load projects. Check your sheet URL.
+                    <strong>Could not load projects</strong><br>
+                    ${error.message}<br>
+                    <small>Make sure: 1) Sheet is publicly shared 2) CSV export is enabled 3) Sheet ID is correct</small>
                 </div>`;
         }
     }
